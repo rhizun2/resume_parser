@@ -90,7 +90,8 @@ message = {
 response_format = {
     "type": "json_object"
 }
-response = client.chat.completions.create(model = model, messages = message, response_format = response_format)
+messages = [message_system,message]
+response = client.chat.completions.create(model = model, messages = messages, response_format = response_format)
 answer = response.choices[0].message.content
 raw_json = answer
 # print(raw_json)
@@ -100,7 +101,7 @@ job_data=json.loads(raw_json)
 job = JobD(**job_data)
 
 print(job.minimum_experience)
-print(job.education_requirements)
+print(job.educational_requirements)
 
 
 
@@ -135,7 +136,7 @@ def read_pdf(file_path):
     for page in reader.pages:
         page_text = page.extract_text()
         if page_text:
-            text += page_text "\n"
+            text += page_text + "\n"
     return text
 
 from docx import Document
@@ -150,7 +151,7 @@ def read_docx(file_path):
         for row in table.rows:
             for cell in row.cells:
                 if cell.text.strip():
-                    text += cell.text "\n"
+                    text += cell.text + "\n"
     return text
 
 def read_resume(file_path):
@@ -274,6 +275,42 @@ for file_path in resume_folder.iterdir():
     resume_text = read_resume(file_path)
     parsed_resume = parse_resume(resume_text) #llm call1
     time.sleep(5) #we give these timeouts after each llm call to avoid DOS attacks (/overloads--> can't access servers anymore) DOS:  denial of service
-    result = final_score() #llm call2 --> gives score and details
+    result = final_score(job, parsed_resume) #llm call2 --> gives score and details
     time.sleep(5)
-    print("Score:")
+    print("Score:", result.score)
+    all_results.append({
+        "name": parsed_resume.name,
+        "score": result.score,
+        "details": result.details
+    })
+
+all_results.sort( #how does this work?
+    key = lambda  candidate: candidate["score"],
+    reverse = True #descending order
+    )
+top_2 = all_results[:2]
+worst_2 = all_results[-2:]
+
+print("##############################")
+
+print("TOP 2 candidates")
+for candidate in top_2:
+    print(
+        candidate["name"],
+        "-",
+        candidate["score"],
+        "%"
+    )
+    print(candidate["details"])
+
+print("##############################")
+
+print("WORST 2 candidates")
+for candidate in worst_2:
+    print(
+        candidate["name"],
+        "-",
+        candidate["score"],
+        "%"
+    )
+    print(candidate["details"])
